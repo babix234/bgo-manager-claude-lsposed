@@ -25,8 +25,19 @@ class RootUtil @Inject constructor() {
      */
     suspend fun requestRootAccess(): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Close any cached shell to force new root request
+            Shell.getCachedShell()?.close()
+
+            // Get new shell - this will trigger Magisk/SuperSU dialog
             val shell = Shell.getShell()
-            shell.isRoot
+
+            // Verify root actually works by executing a test command
+            if (shell.isRoot) {
+                val testResult = Shell.cmd("id").exec()
+                testResult.isSuccess && testResult.out.any { it.contains("uid=0") }
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }
@@ -37,6 +48,12 @@ class RootUtil @Inject constructor() {
      */
     suspend fun executeCommand(command: String): Result<String> = withContext(Dispatchers.IO) {
         try {
+            // Ensure we have root shell
+            val shell = Shell.getShell()
+            if (!shell.isRoot) {
+                return@withContext Result.failure(Exception("No root access"))
+            }
+
             val result = Shell.cmd(command).exec()
             if (result.isSuccess) {
                 Result.success(result.out.joinToString("\n"))
@@ -54,6 +71,12 @@ class RootUtil @Inject constructor() {
     suspend fun executeCommands(commands: List<String>): Result<List<String>> =
         withContext(Dispatchers.IO) {
             try {
+                // Ensure we have root shell
+                val shell = Shell.getShell()
+                if (!shell.isRoot) {
+                    return@withContext Result.failure(Exception("No root access"))
+                }
+
                 val result = Shell.cmd(*commands.toTypedArray()).exec()
                 if (result.isSuccess) {
                     Result.success(result.out)
