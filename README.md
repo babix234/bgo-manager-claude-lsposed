@@ -1,0 +1,1 @@
+# bgo-manager-claude
