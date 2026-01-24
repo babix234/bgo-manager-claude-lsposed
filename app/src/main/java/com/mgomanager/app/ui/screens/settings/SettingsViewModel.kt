@@ -31,13 +31,12 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadSettings() {
         viewModelScope.launch {
+            // Load settings from DataStore
             combine(
                 settingsDataStore.accountPrefix,
                 settingsDataStore.backupRootPath,
                 settingsDataStore.appStartCount
             ) { prefix, path, count ->
-                Triple(prefix, path, count)
-            }.collect { (prefix, path, count) ->
                 _uiState.update {
                     it.copy(
                         accountPrefix = prefix,
@@ -45,8 +44,18 @@ class SettingsViewModel @Inject constructor(
                         appStartCount = count
                     )
                 }
-            }
+            }.collect { }
+        }
 
+        // Check root status separately
+        viewModelScope.launch {
+            val isRooted = rootUtil.isRooted()
+            _uiState.update { it.copy(isRootAvailable = isRooted) }
+        }
+    }
+
+    fun refreshRootStatus() {
+        viewModelScope.launch {
             val isRooted = rootUtil.isRooted()
             _uiState.update { it.copy(isRootAvailable = isRooted) }
         }

@@ -28,6 +28,11 @@ fun SettingsScreen(
         pathInput = uiState.backupRootPath
     }
 
+    // Refresh root status when screen is loaded
+    LaunchedEffect(Unit) {
+        viewModel.refreshRootStatus()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
