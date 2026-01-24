@@ -96,8 +96,9 @@ class RestoreBackupUseCase @Inject constructor(
         if (result.isSuccess) {
             logRepository.logInfo("RESTORE", "Verzeichnis wiederhergestellt: $source -> $destination", accountName)
         } else {
-            logRepository.logError("RESTORE", "Fehler beim Wiederherstellen: $source", accountName)
-            throw Exception("Verzeichnis konnte nicht wiederhergestellt werden: $source")
+            val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+            logRepository.logError("RESTORE", "Fehler beim Wiederherstellen: $source - $errorMsg", accountName)
+            throw Exception("Verzeichnis konnte nicht wiederhergestellt werden: $source - $errorMsg")
         }
     }
 }
