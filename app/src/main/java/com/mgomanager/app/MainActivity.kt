@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
 
                 var isReady by remember { mutableStateOf(false) }
+                var showPermissionDialog by remember { mutableStateOf(false) }
                 var errorMessage by remember { mutableStateOf<String?>(null) }
 
                 LaunchedEffect(Unit) {
@@ -44,9 +45,35 @@ class MainActivity : ComponentActivity() {
 
                     when {
                         !isRooted -> errorMessage = "Root-Zugriff erforderlich"
-                        !hasPermissions -> errorMessage = "Speicher-Berechtigungen erforderlich"
+                        !hasPermissions -> showPermissionDialog = true
                         !isMGOInstalled -> errorMessage = "Monopoly Go nicht installiert"
                         else -> isReady = true
+                    }
+                }
+
+                // Recheck permissions when resuming from settings
+                DisposableEffect(Unit) {
+                    val listener = object : android.app.Application.ActivityLifecycleCallbacks {
+                        override fun onActivityResumed(activity: android.app.Activity) {
+                            if (activity == this@MainActivity && showPermissionDialog) {
+                                if (permissionManager.hasStoragePermissions()) {
+                                    showPermissionDialog = false
+                                    if (errorMessage == null) {
+                                        isReady = true
+                                    }
+                                }
+                            }
+                        }
+                        override fun onActivityPaused(activity: android.app.Activity) {}
+                        override fun onActivityStarted(activity: android.app.Activity) {}
+                        override fun onActivityStopped(activity: android.app.Activity) {}
+                        override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: Bundle?) {}
+                        override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: Bundle) {}
+                        override fun onActivityDestroyed(activity: android.app.Activity) {}
+                    }
+                    application.registerActivityLifecycleCallbacks(listener)
+                    onDispose {
+                        application.unregisterActivityLifecycleCallbacks(listener)
                     }
                 }
 
@@ -64,6 +91,28 @@ class MainActivity : ComponentActivity() {
                                 confirmButton = {
                                     TextButton(onClick = { finish() }) {
                                         Text("Schließen")
+                                    }
+                                }
+                            )
+                        }
+                        showPermissionDialog -> {
+                            // Show permission request dialog
+                            AlertDialog(
+                                onDismissRequest = { },
+                                title = { Text("Berechtigungen erforderlich") },
+                                text = {
+                                    Text("Diese App benötigt Zugriff auf den Speicher, um Backups zu erstellen. Bitte erteile die erforderlichen Berechtigungen in den Einstellungen.")
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        permissionManager.requestStoragePermissions(this@MainActivity)
+                                    }) {
+                                        Text("Berechtigungen erteilen")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { finish() }) {
+                                        Text("Abbrechen")
                                     }
                                 }
                             )
