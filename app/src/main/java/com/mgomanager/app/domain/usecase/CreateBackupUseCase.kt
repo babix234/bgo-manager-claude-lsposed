@@ -59,7 +59,8 @@ class CreateBackupUseCase @Inject constructor(
 
             val createDirResult = rootUtil.executeCommand("mkdir -p $backupPath")
             if (createDirResult.isFailure) {
-                throw Exception("Backup-Verzeichnis konnte nicht erstellt werden")
+                val errorMsg = createDirResult.exceptionOrNull()?.message ?: "Unknown error"
+                throw Exception("Backup-Verzeichnis konnte nicht erstellt werden: $errorMsg")
             }
             logRepository.logInfo("BACKUP", "Backup-Verzeichnis erstellt: $backupPath", request.accountName)
 
@@ -144,8 +145,9 @@ class CreateBackupUseCase @Inject constructor(
         if (result.isSuccess) {
             logRepository.logInfo("BACKUP", "Verzeichnis kopiert: $source -> $destination", accountName)
         } else {
-            logRepository.logError("BACKUP", "Fehler beim Kopieren: $source", accountName)
-            throw Exception("Verzeichnis konnte nicht kopiert werden: $source")
+            val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+            logRepository.logError("BACKUP", "Fehler beim Kopieren: $source - $errorMsg", accountName)
+            throw Exception("Verzeichnis konnte nicht kopiert werden: $source - $errorMsg")
         }
     }
 }
