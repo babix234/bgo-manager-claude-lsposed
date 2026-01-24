@@ -1,0 +1,66 @@
+package com.mgomanager.app.ui.screens.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.mgomanager.app.data.local.preferences.SettingsDataStore
+import com.mgomanager.app.domain.util.RootUtil
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class SettingsUiState(
+    val accountPrefix: String = "MGO_",
+    val backupRootPath: String = "/storage/emulated/0/mgo/backups/",
+    val isRootAvailable: Boolean = false,
+    val appStartCount: Int = 0
+)
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val settingsDataStore: SettingsDataStore,
+    private val rootUtil: RootUtil
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadSettings()
+    }
+
+    private fun loadSettings() {
+        viewModelScope.launch {
+            combine(
+                settingsDataStore.accountPrefix,
+                settingsDataStore.backupRootPath,
+                settingsDataStore.appStartCount
+            ) { prefix, path, count ->
+                Triple(prefix, path, count)
+            }.collect { (prefix, path, count) ->
+                _uiState.update {
+                    it.copy(
+                        accountPrefix = prefix,
+                        backupRootPath = path,
+                        appStartCount = count
+                    )
+                }
+            }
+
+            val isRooted = rootUtil.isRooted()
+            _uiState.update { it.copy(isRootAvailable = isRooted) }
+        }
+    }
+
+    fun updatePrefix(prefix: String) {
+        viewModelScope.launch {
+            settingsDataStore.setAccountPrefix(prefix)
+        }
+    }
+
+    fun updateBackupPath(path: String) {
+        viewModelScope.launch {
+            settingsDataStore.setBackupRootPath(path)
+        }
+    }
+}
