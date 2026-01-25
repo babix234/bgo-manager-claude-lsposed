@@ -8,7 +8,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import timber.log.Timber
+import java.security.Security
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -24,6 +26,9 @@ class MGOApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Register BouncyCastle as security provider for SSH (required for X25519, Ed25519, etc.)
+        setupBouncyCastle()
 
         // Initialize Timber for logging (optional but helpful)
         if (BuildConfig.DEBUG) {
@@ -52,5 +57,17 @@ class MGOApplication : Application() {
             // Cleanup old sessions
             logRepository.cleanupOldSessions()
         }
+    }
+
+    /**
+     * Setup BouncyCastle as security provider
+     * Required for modern SSH algorithms like X25519, Ed25519
+     */
+    private fun setupBouncyCastle() {
+        // Remove any existing BC provider (Android has a limited built-in version)
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+        // Add BouncyCastle as highest priority provider
+        Security.insertProviderAt(BouncyCastleProvider(), 1)
+        Timber.d("BouncyCastle security provider registered")
     }
 }
