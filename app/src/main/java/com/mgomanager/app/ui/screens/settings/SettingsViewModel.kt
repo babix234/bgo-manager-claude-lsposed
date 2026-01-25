@@ -73,21 +73,31 @@ class SettingsViewModel @Inject constructor(
             }.collect { }
         }
 
-        // Load SSH settings
+        // Load SSH settings (split into separate collectors due to combine limit of 5 flows)
         viewModelScope.launch {
             combine(
                 settingsDataStore.sshPrivateKeyPath,
                 settingsDataStore.sshServer,
-                settingsDataStore.sshBackupPath,
-                settingsDataStore.sshAutoCheckOnStart,
-                settingsDataStore.sshAutoUploadOnExport,
-                settingsDataStore.sshLastSyncTimestamp
-            ) { keyPath, server, backupPath, autoCheck, autoUpload, lastSync ->
+                settingsDataStore.sshBackupPath
+            ) { keyPath, server, backupPath ->
                 _uiState.update {
                     it.copy(
                         sshPrivateKeyPath = keyPath,
                         sshServer = server,
-                        sshBackupPath = backupPath,
+                        sshBackupPath = backupPath
+                    )
+                }
+            }.collect { }
+        }
+
+        viewModelScope.launch {
+            combine(
+                settingsDataStore.sshAutoCheckOnStart,
+                settingsDataStore.sshAutoUploadOnExport,
+                settingsDataStore.sshLastSyncTimestamp
+            ) { autoCheck, autoUpload, lastSync ->
+                _uiState.update {
+                    it.copy(
                         sshAutoCheckOnStart = autoCheck,
                         sshAutoUploadOnExport = autoUpload,
                         sshLastSyncTimestamp = lastSync
