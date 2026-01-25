@@ -24,7 +24,14 @@ data class HomeUiState(
     val backupResult: BackupResult? = null,
     val restoreResult: RestoreResult? = null,
     val showRestoreConfirm: Long? = null, // Account ID to restore
-    val showRestoreSuccessDialog: Boolean = false
+    val showRestoreSuccessDialog: Boolean = false,
+    val duplicateUserIdDialog: DuplicateUserIdInfo? = null // For duplicate check
+)
+
+data class DuplicateUserIdInfo(
+    val userId: String,
+    val existingAccountName: String,
+    val pendingRequest: BackupRequest
 )
 
 @HiltViewModel
@@ -84,7 +91,8 @@ class HomeViewModel @Inject constructor(
         fbUsername: String? = null,
         fbPassword: String? = null,
         fb2FA: String? = null,
-        fbTempMail: String? = null
+        fbTempMail: String? = null,
+        forceDuplicate: Boolean = false
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -103,15 +111,49 @@ class HomeViewModel @Inject constructor(
                 fbTempMail = fbTempMail
             )
 
-            val result = backupRepository.createBackup(request)
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    backupResult = result,
-                    showBackupDialog = false
-                )
+            val result = backupRepository.createBackup(request, forceDuplicate)
+
+            // Check if duplicate user ID was found
+            if (result is BackupResult.DuplicateUserId) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        showBackupDialog = false,
+                        duplicateUserIdDialog = DuplicateUserIdInfo(
+                            userId = result.userId,
+                            existingAccountName = result.existingAccountName,
+                            pendingRequest = request
+                        )
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        backupResult = result,
+                        showBackupDialog = false
+                    )
+                }
             }
         }
+    }
+
+    fun confirmDuplicateBackup() {
+        val info = _uiState.value.duplicateUserIdDialog ?: return
+        _uiState.update { it.copy(duplicateUserIdDialog = null) }
+        createBackup(
+            accountName = info.pendingRequest.accountName,
+            hasFacebookLink = info.pendingRequest.hasFacebookLink,
+            fbUsername = info.pendingRequest.fbUsername,
+            fbPassword = info.pendingRequest.fbPassword,
+            fb2FA = info.pendingRequest.fb2FA,
+            fbTempMail = info.pendingRequest.fbTempMail,
+            forceDuplicate = true
+        )
+    }
+
+    fun cancelDuplicateBackup() {
+        _uiState.update { it.copy(duplicateUserIdDialog = null) }
     }
 
     fun clearBackupResult() {

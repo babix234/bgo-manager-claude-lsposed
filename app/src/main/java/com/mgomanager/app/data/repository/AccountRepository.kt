@@ -57,6 +57,13 @@ class AccountRepository @Inject constructor(
     }
 
     /**
+     * Get account by User ID
+     */
+    suspend fun getAccountByUserId(userId: String): Account? {
+        return accountDao.getAccountByUserId(userId)?.toDomain()
+    }
+
+    /**
      * Insert new account
      * @return ID of inserted account
      */

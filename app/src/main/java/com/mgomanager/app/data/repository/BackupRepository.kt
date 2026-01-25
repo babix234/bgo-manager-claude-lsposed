@@ -14,8 +14,8 @@ class BackupRepository @Inject constructor(
     private val restoreBackupUseCase: RestoreBackupUseCase
 ) {
 
-    suspend fun createBackup(request: BackupRequest): BackupResult {
-        return createBackupUseCase.execute(request)
+    suspend fun createBackup(request: BackupRequest, forceDuplicate: Boolean = false): BackupResult {
+        return createBackupUseCase.execute(request, forceDuplicate)
     }
 
     suspend fun restoreBackup(accountId: Long): RestoreResult {
