@@ -1,10 +1,13 @@
 package com.mgomanager.app.ui.screens.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mgomanager.app.data.local.preferences.SettingsDataStore
+import com.mgomanager.app.domain.usecase.ExportImportUseCase
 import com.mgomanager.app.domain.util.RootUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,13 +18,19 @@ data class SettingsUiState(
     val isRootAvailable: Boolean = false,
     val appStartCount: Int = 0,
     val prefixSaved: Boolean = false,
-    val pathSaved: Boolean = false
+    val pathSaved: Boolean = false,
+    val exportResult: String? = null,
+    val importResult: String? = null,
+    val isExporting: Boolean = false,
+    val isImporting: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
-    private val rootUtil: RootUtil
+    private val rootUtil: RootUtil,
+    private val exportImportUseCase: ExportImportUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -83,5 +92,39 @@ class SettingsViewModel @Inject constructor(
 
     fun resetPathSaved() {
         _uiState.update { it.copy(pathSaved = false) }
+    }
+
+    fun exportData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true) }
+            val result = exportImportUseCase.exportData(context)
+            _uiState.update {
+                it.copy(
+                    isExporting = false,
+                    exportResult = result.getOrElse { e -> "Export fehlgeschlagen: ${e.message}" }
+                )
+            }
+        }
+    }
+
+    fun importData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true) }
+            val result = exportImportUseCase.importData(context)
+            _uiState.update {
+                it.copy(
+                    isImporting = false,
+                    importResult = if (result.isSuccess) "Import erfolgreich!" else "Import fehlgeschlagen: ${result.exceptionOrNull()?.message}"
+                )
+            }
+        }
+    }
+
+    fun clearExportResult() {
+        _uiState.update { it.copy(exportResult = null) }
+    }
+
+    fun clearImportResult() {
+        _uiState.update { it.copy(importResult = null) }
     }
 }

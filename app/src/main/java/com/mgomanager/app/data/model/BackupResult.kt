@@ -19,6 +19,11 @@ sealed class BackupResult {
         val missingIds: List<String>,
         val message: String = "Backup erstellt, aber einige IDs fehlen"
     ) : BackupResult()
+
+    data class DuplicateUserId(
+        val userId: String,
+        val existingAccountName: String
+    ) : BackupResult()
 }
 
 /**

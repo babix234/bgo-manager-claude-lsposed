@@ -43,11 +43,12 @@ class IdExtractor @Inject constructor() {
 
     /**
      * Extract SSAID from settings_ssaid.xml using regex
+     * Format: com.scopely.monopolygo/<16-char-hex-ssaid>
      */
     fun extractSsaid(xmlFile: File): String {
         return try {
             val content = xmlFile.readText()
-            val regex = Regex("""com\.scopely\.monopolygo[^/]*/[^/]*/[^/]*/([0-9a-f]{16})""")
+            val regex = Regex("""com\.scopely\.monopolygo/([a-f0-9]{16})""")
             val match = regex.find(content)
             match?.groupValues?.get(1) ?: "nicht vorhanden"
         } catch (e: Exception) {

@@ -39,7 +39,7 @@ class CreateBackupUseCase @Inject constructor(
         const val PLAYER_PREFS_FILE = "com.scopely.monopolygo.v2.playerprefs.xml"
     }
 
-    suspend fun execute(request: BackupRequest): BackupResult = withContext(Dispatchers.IO) {
+    suspend fun execute(request: BackupRequest, forceDuplicate: Boolean = false): BackupResult = withContext(Dispatchers.IO) {
         try {
             logRepository.logInfo("BACKUP", "Starte Backup für ${request.accountName}")
 
@@ -79,6 +79,20 @@ class CreateBackupUseCase @Inject constructor(
             val extractedIds = idExtractor.extractIdsFromPlayerPrefs(playerPrefsFile).getOrElse {
                 logRepository.logError("BACKUP", "ID-Extraktion fehlgeschlagen", request.accountName, it as? Exception)
                 throw Exception("User ID konnte nicht extrahiert werden (MANDATORY)")
+            }
+
+            // Step 6.5: Check for duplicate User ID (unless force flag is set)
+            if (!forceDuplicate) {
+                val existingAccount = accountRepository.getAccountByUserId(extractedIds.userId)
+                if (existingAccount != null) {
+                    logRepository.logWarning("BACKUP", "Duplicate User ID found: ${extractedIds.userId} exists as ${existingAccount.fullName}", request.accountName)
+                    // Clean up the backup directory we just created
+                    rootUtil.executeCommand("rm -rf $backupPath")
+                    return@withContext BackupResult.DuplicateUserId(
+                        userId = extractedIds.userId,
+                        existingAccountName = existingAccount.fullName
+                    )
+                }
             }
 
             // Step 7: Extract SSAID
