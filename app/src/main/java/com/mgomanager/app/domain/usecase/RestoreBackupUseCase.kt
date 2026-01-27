@@ -80,6 +80,14 @@ class RestoreBackupUseCase @Inject constructor(
             // Step 7: Update lastPlayedAt timestamp
             accountRepository.updateLastPlayedTimestamp(accountId)
 
+            // Step 8: Mark account as last restored for Xposed hook
+            accountRepository.markAsLastRestored(accountId)
+            logRepository.logInfo(
+                "RESTORE",
+                "Account als zuletzt wiederhergestellt markiert. Xposed Hook nutzt App Set ID: ${account.appSetId}",
+                account.fullName
+            )
+
             logRepository.logInfo("RESTORE", "Restore erfolgreich abgeschlossen", account.fullName)
             RestoreResult.Success(account.fullName)
 
