@@ -1,6 +1,7 @@
 package com.mgomanager.app.domain.usecase
 
 import android.content.Context
+import com.mgomanager.app.data.local.database.AppDatabase
 import com.mgomanager.app.data.local.preferences.SettingsDataStore
 import com.mgomanager.app.data.model.ExportProgress
 import com.mgomanager.app.data.model.ImportProgress
@@ -73,7 +74,7 @@ class ExportImportUseCase @Inject constructor(
             val backupPath = settingsDataStore.backupRootPath.first()
 
             // Get database path
-            val dbPath = context.getDatabasePath("mgo_database").absolutePath
+            val dbPath = context.getDatabasePath(AppDatabase.DATABASE_NAME).absolutePath
 
             // Step 2: Prepare file list
             emit(ExportProgress.InProgress(
@@ -102,17 +103,28 @@ class ExportImportUseCase @Inject constructor(
                     totalSteps = totalSteps,
                     stepDescription = "Exportiere Datenbank...",
                     percentComplete = currentStep.toFloat() / totalSteps,
-                    currentFile = "mgo_database",
+                    currentFile = AppDatabase.DATABASE_NAME,
                     filesProcessed = 0,
                     totalFiles = totalFiles
                 )
             ))
 
             ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
-                // Add database file
+                // Add database file and related files (WAL, SHM)
                 val dbFile = File(dbPath)
                 if (dbFile.exists()) {
                     addFileToZip(zos, dbFile, "$DB_FOLDER/${dbFile.name}")
+
+                    // Also export WAL and SHM files if they exist
+                    val walFile = File("$dbPath-wal")
+                    val shmFile = File("$dbPath-shm")
+                    if (walFile.exists()) {
+                        addFileToZip(zos, walFile, "$DB_FOLDER/${walFile.name}")
+                    }
+                    if (shmFile.exists()) {
+                        addFileToZip(zos, shmFile, "$DB_FOLDER/${shmFile.name}")
+                    }
+
                     logRepository.logInfo("EXPORT", "Database added to export")
                 }
 
@@ -274,7 +286,7 @@ class ExportImportUseCase @Inject constructor(
             val backupPath = settingsDataStore.backupRootPath.first()
 
             // Get database path
-            val dbPath = context.getDatabasePath("mgo_database").parentFile?.absolutePath
+            val dbPath = context.getDatabasePath(AppDatabase.DATABASE_NAME).parentFile?.absolutePath
                 ?: run {
                     emit(ImportProgress.Error("Database path not found"))
                     return@flow
@@ -407,7 +419,7 @@ class ExportImportUseCase @Inject constructor(
             delay(500)
 
             logRepository.logInfo("IMPORT", "Import completed successfully")
-            emit(ImportProgress.Success("Import erfolgreich abgeschlossen!\n$filesExtracted Dateien importiert."))
+            emit(ImportProgress.Success("Import erfolgreich abgeschlossen!\n$filesExtracted Dateien importiert.\n\nBitte starte die App neu, um die importierten Daten zu laden."))
 
         } catch (e: Exception) {
             logRepository.logError("IMPORT", "Import failed: ${e.message}", exception = e)
