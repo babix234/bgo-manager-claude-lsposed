@@ -333,7 +333,7 @@ class ExportImportUseCase @Inject constructor(
             ZipInputStream(FileInputStream(zipFile)).use { zis ->
                 var entry: ZipEntry? = zis.nextEntry
                 while (entry != null) {
-                    val currentEntry = entry
+                    val currentEntry = entry!!
                     val entryName = currentEntry.name
 
                     when {
